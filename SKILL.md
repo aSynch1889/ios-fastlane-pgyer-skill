@@ -1,6 +1,6 @@
 ---
 name: ios-fastlane-skill
-description: Reuse an iOS fastlane pipeline with match signing sync, profiles lane, quality gate, git/tag versioning, CI lanes, multi-environment staging/prod lanes, changelog + artifact manifest output, release lanes, and Slack/WeChat notifications.
+description: Reuse an iOS fastlane pipeline with match signing sync, profiles lane, quality gate, git/tag versioning, CI lanes, multi-environment staging/prod lanes, changelog + artifact manifest output, screenshot+metadata lanes, release lanes, and Slack/WeChat notifications.
 ---
 
 # iOS Fastlane Skill (Production Ready)
@@ -11,7 +11,8 @@ description: Reuse an iOS fastlane pipeline with match signing sync, profiles la
 - Signing: `certificates`, `profiles`
 - Quality/version: `quality_gate`, `versioning`
 - CI: `ci_setup`, `ci_build_dev`, `ci_build_dis`
-- Release: `snapshot_capture`, `metadata_sync`, `release_testflight`, `release_appstore`
+- Screenshot/metadata: `snapshot_capture`, `metadata_sync`
+- Release: `release_testflight`, `release_appstore`
 - Validation: `validate_config`
 
 ## Hooks and output
