@@ -17,7 +17,7 @@ A reusable Codex skill to bootstrap and standardize iOS fastlane with match sign
   - `prepare`, `quality_gate`, `versioning`, `certificates`, `profiles`
   - `dev`, `dis`, `staging`, `prod`
   - `ci_setup`, `ci_build_dev`, `ci_build_dis`
-  - `release_testflight`, `release_appstore`
+  - `snapshot_capture`, `metadata_sync`, `release_testflight`, `release_appstore`
   - `validate_config`, `clean_builds`
 - Hooks and observability:
   - `before_all` / `after_all` / `error`
@@ -69,6 +69,8 @@ bash /Users/newdroid/.codex/skills/ios-fastlane-skill/scripts/bootstrap_fastlane
 
 ```bash
 bundle exec fastlane ios profiles
+bundle exec fastlane ios snapshot_capture
+bundle exec fastlane ios metadata_sync
 bundle exec fastlane ios ci_build_dev
 bundle exec fastlane ios staging
 bundle exec fastlane ios release_testflight
@@ -96,6 +98,13 @@ bundle exec fastlane ios release_appstore
 --enable-swiftlint true|false
 --enable-slack-notify true|false
 --enable-wechat-notify true|false
+--enable-snapshot true|false
+--snapshot-scheme AppScheme
+--snapshot-devices "iPhone 15 Pro,iPhone 15"
+--snapshot-languages "en-US,zh-Hans"
+--metadata-path fastlane/metadata
+--enable-metadata-upload true|false
+--enable-screenshot-upload true|false
 --gym-skip-clean true|false
 --derived-data-path /path
 --ci-bundle-install true|false

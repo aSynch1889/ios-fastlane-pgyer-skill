@@ -37,6 +37,13 @@ platform :ios do
 
   APP_STORE_CONNECT_API_KEY_PATH = ENV["APP_STORE_CONNECT_API_KEY_PATH"] || ""
   TESTFLIGHT_GROUPS = ENV["TESTFLIGHT_GROUPS"] || ""
+  METADATA_PATH = ENV["METADATA_PATH"] || "{{METADATA_PATH}}"
+  ENABLE_METADATA_UPLOAD = ENV["ENABLE_METADATA_UPLOAD"] || "{{ENABLE_METADATA_UPLOAD}}"
+  ENABLE_SCREENSHOT_UPLOAD = ENV["ENABLE_SCREENSHOT_UPLOAD"] || "{{ENABLE_SCREENSHOT_UPLOAD}}"
+  ENABLE_SNAPSHOT = ENV["ENABLE_SNAPSHOT"] || "{{ENABLE_SNAPSHOT}}"
+  SNAPSHOT_SCHEME = ENV["SNAPSHOT_SCHEME"] || "{{SNAPSHOT_SCHEME}}"
+  SNAPSHOT_DEVICES = ENV["SNAPSHOT_DEVICES"] || "{{SNAPSHOT_DEVICES}}"
+  SNAPSHOT_LANGUAGES = ENV["SNAPSHOT_LANGUAGES"] || "{{SNAPSHOT_LANGUAGES}}"
 
   GYM_SKIP_CLEAN = ENV["GYM_SKIP_CLEAN"] || "{{GYM_SKIP_CLEAN}}"
   DERIVED_DATA_PATH = ENV["DERIVED_DATA_PATH"] || "{{DERIVED_DATA_PATH}}"
@@ -89,6 +96,10 @@ platform :ios do
     return {} unless File.exist?(APP_STORE_CONNECT_API_KEY_PATH)
 
     { api_key_path: APP_STORE_CONNECT_API_KEY_PATH }
+  end
+
+  def parse_csv(value)
+    value.to_s.split(",").map(&:strip).reject(&:empty?)
   end
 
   def gym_container_options
@@ -706,6 +717,42 @@ platform :ios do
     )
   end
 
+  desc "自动截图（snapshot）"
+  lane :snapshot_capture do |options|
+    unless bool_true?(ENABLE_SNAPSHOT)
+      UI.important("ENABLE_SNAPSHOT=false, skip snapshot capture")
+      next
+    end
+
+    scheme = options[:scheme] || SNAPSHOT_SCHEME || SCHEME_DIS
+    devices = parse_csv(options[:devices] || SNAPSHOT_DEVICES)
+    languages = parse_csv(options[:languages] || SNAPSHOT_LANGUAGES)
+
+    snap_options = app_store_connect_auth_options.merge(
+      **gym_container_options,
+      scheme: scheme,
+      clean: !bool_true?(GYM_SKIP_CLEAN)
+    )
+    snap_options[:devices] = devices unless devices.empty?
+    snap_options[:languages] = languages unless languages.empty?
+
+    snapshot(snap_options)
+  end
+
+  desc "仅同步 metadata / screenshots（不上传二进制）"
+  lane :metadata_sync do
+    deliver(
+      **app_store_connect_auth_options,
+      force: true,
+      skip_binary_upload: true,
+      metadata_path: METADATA_PATH,
+      skip_metadata: !bool_true?(ENABLE_METADATA_UPLOAD),
+      skip_screenshots: !bool_true?(ENABLE_SCREENSHOT_UPLOAD),
+      submit_for_review: false,
+      automatic_release: false
+    )
+  end
+
   desc "发布到 App Store Connect（不自动提交审核）"
   lane :release_appstore do
     prepare
@@ -726,8 +773,9 @@ platform :ios do
       force: true,
       submit_for_review: false,
       automatic_release: false,
-      skip_metadata: true,
-      skip_screenshots: true
+      metadata_path: METADATA_PATH,
+      skip_metadata: !bool_true?(ENABLE_METADATA_UPLOAD),
+      skip_screenshots: !bool_true?(ENABLE_SCREENSHOT_UPLOAD)
     )
 
     notify_channels(
@@ -800,6 +848,10 @@ platform :ios do
 
     if bool_true?(ENABLE_WECHAT_NOTIFY) && WECHAT_WEBHOOK_URL.to_s.empty?
       UI.important("ENABLE_WECHAT_NOTIFY=true but WECHAT_WEBHOOK_URL is empty")
+    end
+
+    if (bool_true?(ENABLE_METADATA_UPLOAD) || bool_true?(ENABLE_SCREENSHOT_UPLOAD)) && !File.directory?(METADATA_PATH)
+      UI.important("metadata path does not exist: #{METADATA_PATH}")
     end
 
     UI.success("Config validation passed")

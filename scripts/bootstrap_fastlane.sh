@@ -26,6 +26,13 @@ ENABLE_TESTS="true"
 ENABLE_SWIFTLINT="false"
 ENABLE_SLACK_NOTIFY="false"
 ENABLE_WECHAT_NOTIFY="false"
+ENABLE_SNAPSHOT="false"
+SNAPSHOT_SCHEME=""
+SNAPSHOT_DEVICES=""
+SNAPSHOT_LANGUAGES=""
+METADATA_PATH="fastlane/metadata"
+ENABLE_METADATA_UPLOAD="false"
+ENABLE_SCREENSHOT_UPLOAD="false"
 GYM_SKIP_CLEAN="false"
 DERIVED_DATA_PATH=""
 CI_BUNDLE_INSTALL="true"
@@ -61,6 +68,13 @@ Fastlane options:
   --enable-swiftlint  true|false
   --enable-slack-notify true|false
   --enable-wechat-notify true|false
+  --enable-snapshot   true|false
+  --snapshot-scheme   AppScheme
+  --snapshot-devices  "iPhone 15 Pro,iPhone 15"
+  --snapshot-languages "en-US,zh-Hans"
+  --metadata-path     fastlane/metadata
+  --enable-metadata-upload true|false
+  --enable-screenshot-upload true|false
   --gym-skip-clean    true|false
   --derived-data-path /path/to/DerivedData
   --ci-bundle-install true|false
@@ -144,6 +158,13 @@ apply_config_kv() {
     ENABLE_SWIFTLINT|enable_swiftlint) ENABLE_SWIFTLINT="$value" ;;
     ENABLE_SLACK_NOTIFY|enable_slack_notify) ENABLE_SLACK_NOTIFY="$value" ;;
     ENABLE_WECHAT_NOTIFY|enable_wechat_notify) ENABLE_WECHAT_NOTIFY="$value" ;;
+    ENABLE_SNAPSHOT|enable_snapshot) ENABLE_SNAPSHOT="$value" ;;
+    SNAPSHOT_SCHEME|snapshot_scheme) SNAPSHOT_SCHEME="$value" ;;
+    SNAPSHOT_DEVICES|snapshot_devices) SNAPSHOT_DEVICES="$value" ;;
+    SNAPSHOT_LANGUAGES|snapshot_languages) SNAPSHOT_LANGUAGES="$value" ;;
+    METADATA_PATH|metadata_path) METADATA_PATH="$value" ;;
+    ENABLE_METADATA_UPLOAD|enable_metadata_upload) ENABLE_METADATA_UPLOAD="$value" ;;
+    ENABLE_SCREENSHOT_UPLOAD|enable_screenshot_upload) ENABLE_SCREENSHOT_UPLOAD="$value" ;;
     GYM_SKIP_CLEAN|gym_skip_clean) GYM_SKIP_CLEAN="$value" ;;
     DERIVED_DATA_PATH|derived_data_path) DERIVED_DATA_PATH="$value" ;;
     CI_BUNDLE_INSTALL|ci_bundle_install) CI_BUNDLE_INSTALL="$value" ;;
@@ -207,6 +228,9 @@ apply_interactive_overrides() {
   MATCH_GIT_URL=$(prompt_with_default "Match git url" "$MATCH_GIT_URL")
   ENABLE_TESTS=$(prompt_with_default "Enable tests (true/false)" "$ENABLE_TESTS")
   ENABLE_SWIFTLINT=$(prompt_with_default "Enable swiftlint (true/false)" "$ENABLE_SWIFTLINT")
+  ENABLE_SNAPSHOT=$(prompt_with_default "Enable snapshot capture (true/false)" "$ENABLE_SNAPSHOT")
+  ENABLE_METADATA_UPLOAD=$(prompt_with_default "Enable metadata upload (true/false)" "$ENABLE_METADATA_UPLOAD")
+  ENABLE_SCREENSHOT_UPLOAD=$(prompt_with_default "Enable screenshot upload (true/false)" "$ENABLE_SCREENSHOT_UPLOAD")
 }
 
 list_schemes() {
@@ -307,6 +331,13 @@ while [[ $# -gt 0 ]]; do
     --enable-swiftlint) ENABLE_SWIFTLINT="$2"; shift 2 ;;
     --enable-slack-notify) ENABLE_SLACK_NOTIFY="$2"; shift 2 ;;
     --enable-wechat-notify) ENABLE_WECHAT_NOTIFY="$2"; shift 2 ;;
+    --enable-snapshot) ENABLE_SNAPSHOT="$2"; shift 2 ;;
+    --snapshot-scheme) SNAPSHOT_SCHEME="$2"; shift 2 ;;
+    --snapshot-devices) SNAPSHOT_DEVICES="$2"; shift 2 ;;
+    --snapshot-languages) SNAPSHOT_LANGUAGES="$2"; shift 2 ;;
+    --metadata-path) METADATA_PATH="$2"; shift 2 ;;
+    --enable-metadata-upload) ENABLE_METADATA_UPLOAD="$2"; shift 2 ;;
+    --enable-screenshot-upload) ENABLE_SCREENSHOT_UPLOAD="$2"; shift 2 ;;
     --gym-skip-clean) GYM_SKIP_CLEAN="$2"; shift 2 ;;
     --derived-data-path) DERIVED_DATA_PATH="$2"; shift 2 ;;
     --ci-bundle-install) CI_BUNDLE_INSTALL="$2"; shift 2 ;;
@@ -388,13 +419,20 @@ ENABLE_TESTS=$(normalize_bool "$ENABLE_TESTS")
 ENABLE_SWIFTLINT=$(normalize_bool "$ENABLE_SWIFTLINT")
 ENABLE_SLACK_NOTIFY=$(normalize_bool "$ENABLE_SLACK_NOTIFY")
 ENABLE_WECHAT_NOTIFY=$(normalize_bool "$ENABLE_WECHAT_NOTIFY")
+ENABLE_SNAPSHOT=$(normalize_bool "$ENABLE_SNAPSHOT")
+ENABLE_METADATA_UPLOAD=$(normalize_bool "$ENABLE_METADATA_UPLOAD")
+ENABLE_SCREENSHOT_UPLOAD=$(normalize_bool "$ENABLE_SCREENSHOT_UPLOAD")
 GYM_SKIP_CLEAN=$(normalize_bool "$GYM_SKIP_CLEAN")
 CI_BUNDLE_INSTALL=$(normalize_bool "$CI_BUNDLE_INSTALL")
 CI_COCOAPODS_DEPLOYMENT=$(normalize_bool "$CI_COCOAPODS_DEPLOYMENT")
 
-if [[ -z "$ENABLE_QUALITY_GATE" || -z "$ENABLE_TESTS" || -z "$ENABLE_SWIFTLINT" || -z "$ENABLE_SLACK_NOTIFY" || -z "$ENABLE_WECHAT_NOTIFY" || -z "$GYM_SKIP_CLEAN" || -z "$CI_BUNDLE_INSTALL" || -z "$CI_COCOAPODS_DEPLOYMENT" ]]; then
+if [[ -z "$ENABLE_QUALITY_GATE" || -z "$ENABLE_TESTS" || -z "$ENABLE_SWIFTLINT" || -z "$ENABLE_SLACK_NOTIFY" || -z "$ENABLE_WECHAT_NOTIFY" || -z "$ENABLE_SNAPSHOT" || -z "$ENABLE_METADATA_UPLOAD" || -z "$ENABLE_SCREENSHOT_UPLOAD" || -z "$GYM_SKIP_CLEAN" || -z "$CI_BUNDLE_INSTALL" || -z "$CI_COCOAPODS_DEPLOYMENT" ]]; then
   echo "Invalid boolean value in switches. Use true/false." >&2
   exit 1
+fi
+
+if [[ -z "$SNAPSHOT_SCHEME" ]]; then
+  SNAPSHOT_SCHEME="$SCHEME_DIS"
 fi
 
 warnings=()
@@ -451,6 +489,13 @@ echo "  ENABLE_TESTS=$ENABLE_TESTS"
 echo "  ENABLE_SWIFTLINT=$ENABLE_SWIFTLINT"
 echo "  ENABLE_SLACK_NOTIFY=$ENABLE_SLACK_NOTIFY"
 echo "  ENABLE_WECHAT_NOTIFY=$ENABLE_WECHAT_NOTIFY"
+echo "  ENABLE_SNAPSHOT=$ENABLE_SNAPSHOT"
+echo "  SNAPSHOT_SCHEME=$SNAPSHOT_SCHEME"
+echo "  SNAPSHOT_DEVICES=${SNAPSHOT_DEVICES:-<none>}"
+echo "  SNAPSHOT_LANGUAGES=${SNAPSHOT_LANGUAGES:-<none>}"
+echo "  METADATA_PATH=$METADATA_PATH"
+echo "  ENABLE_METADATA_UPLOAD=$ENABLE_METADATA_UPLOAD"
+echo "  ENABLE_SCREENSHOT_UPLOAD=$ENABLE_SCREENSHOT_UPLOAD"
 echo "  GYM_SKIP_CLEAN=$GYM_SKIP_CLEAN"
 echo "  DERIVED_DATA_PATH=${DERIVED_DATA_PATH:-<none>}"
 echo "  CI_BUNDLE_INSTALL=$CI_BUNDLE_INSTALL"
@@ -499,6 +544,13 @@ render() {
     -e "s|{{ENABLE_SWIFTLINT}}|$ENABLE_SWIFTLINT|g" \
     -e "s|{{ENABLE_SLACK_NOTIFY}}|$ENABLE_SLACK_NOTIFY|g" \
     -e "s|{{ENABLE_WECHAT_NOTIFY}}|$ENABLE_WECHAT_NOTIFY|g" \
+    -e "s|{{ENABLE_SNAPSHOT}}|$ENABLE_SNAPSHOT|g" \
+    -e "s|{{SNAPSHOT_SCHEME}}|$SNAPSHOT_SCHEME|g" \
+    -e "s|{{SNAPSHOT_DEVICES}}|$SNAPSHOT_DEVICES|g" \
+    -e "s|{{SNAPSHOT_LANGUAGES}}|$SNAPSHOT_LANGUAGES|g" \
+    -e "s|{{METADATA_PATH}}|$METADATA_PATH|g" \
+    -e "s|{{ENABLE_METADATA_UPLOAD}}|$ENABLE_METADATA_UPLOAD|g" \
+    -e "s|{{ENABLE_SCREENSHOT_UPLOAD}}|$ENABLE_SCREENSHOT_UPLOAD|g" \
     -e "s|{{GYM_SKIP_CLEAN}}|$GYM_SKIP_CLEAN|g" \
     -e "s|{{DERIVED_DATA_PATH}}|$DERIVED_DATA_PATH|g" \
     -e "s|{{CI_BUNDLE_INSTALL}}|$CI_BUNDLE_INSTALL|g" \

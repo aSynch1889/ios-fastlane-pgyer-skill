@@ -189,6 +189,13 @@ bundle exec fastlane ios profiles
 - `certificates`：按类型同步（development / adhoc / appstore）
 - `profiles`：一次同步三种类型，适合团队初始化和 CI 准备
 
+截图与元数据同步：
+
+```bash
+bundle exec fastlane ios snapshot_capture
+bundle exec fastlane ios metadata_sync
+```
+
 ## 六、质量门禁与版本策略
 
 ## 1. 质量门禁
