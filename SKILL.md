@@ -1,15 +1,13 @@
 ---
 name: ios-fastlane-pgyer
-description: Reuse an iOS fastlane pipeline with match signing sync, quality gate (tests/lint), git-based versioning, CI lanes, Pgyer upload, TestFlight/App Store lanes, and Slack/WeChat notifications.
+description: Reuse an iOS fastlane pipeline with match signing sync, quality gate (tests/lint), git-based versioning, CI lanes, multi-environment staging/prod lanes, changelog markdown generation, Pgyer/TestFlight/App Store release, and Slack/WeChat notifications.
 ---
 
 # iOS Fastlane + Pgyer (Production Ready)
 
-Use this skill when users want to bootstrap or standardize iOS fastlane for local + CI delivery.
-
 ## Included lanes
 
-- Build/distribute: `dev`, `dis`
+- Build/distribute: `dev`, `dis`, `staging`, `prod`
 - Signing sync: `certificates` (`match`)
 - Quality gate: `quality_gate` (`scan` + optional `swiftlint`)
 - Versioning: `versioning` (git build number + changelog)
@@ -17,28 +15,23 @@ Use this skill when users want to bootstrap or standardize iOS fastlane for loca
 - Release: `release_testflight`, `release_appstore`
 - Validation: `validate_config`
 
-## Workflow
+## Environment files
 
-1. Run bootstrap with `--dry-run` in target project root.
-2. Generate files.
-3. Copy `fastlane/.env.fastlane.example` to `fastlane/.env.fastlane` and fill secrets.
-4. Run lanes.
+Generated examples:
+- `fastlane/.env.fastlane.example`
+- `fastlane/.env.fastlane.staging.example`
+- `fastlane/.env.fastlane.prod.example`
 
-## Bootstrap examples
+Runtime files:
+- `fastlane/.env.fastlane`
+- `fastlane/.env.fastlane.staging`
+- `fastlane/.env.fastlane.prod`
 
-```bash
-bash /Users/newdroid/.codex/skills/ios-fastlane-pgyer/scripts/bootstrap_fastlane.sh --dry-run
-```
+`staging` and `prod` lanes automatically load their env layer file.
 
-```bash
-bash /Users/newdroid/.codex/skills/ios-fastlane-pgyer/scripts/bootstrap_fastlane.sh \
-  --match-git-url "git@github.com:your-org/certificates.git" \
-  --enable-tests true \
-  --enable-swiftlint false \
-  --enable-slack-notify true
-```
+## Changelog output
 
-## Release notes
+Every build generates markdown changelog under:
+- `fastlane/builds/CHANGELOG_<env>_<version>_<build>.md`
 
-- `release_testflight` and `release_appstore` use App Store Connect credentials from env (for example `APP_STORE_CONNECT_API_KEY_PATH`).
-- Slack/WeChat notifications are optional and controlled by env switches.
+The changelog filename is included in Slack/WeChat notification text.

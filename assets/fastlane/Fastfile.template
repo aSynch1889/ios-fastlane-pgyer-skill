@@ -1,4 +1,5 @@
 require 'json'
+require 'dotenv'
 
 default_platform(:ios)
 
@@ -48,6 +49,11 @@ platform :ios do
 
   def bool_true?(value)
     value.to_s.downcase == "true"
+  end
+
+  def env_fetch(key, default_value)
+    value = ENV[key]
+    value.to_s.empty? ? default_value : value
   end
 
   def valid_team_id?(team_id)
@@ -106,6 +112,32 @@ platform :ios do
 
   def quality_gate_enabled?
     bool_true?(ENABLE_QUALITY_GATE)
+  end
+
+  private_lane :load_env_layer do |options|
+    env_name = options[:name]
+    path = "fastlane/.env.fastlane.#{env_name}"
+
+    if File.exist?(path)
+      Dotenv.overload(path)
+      UI.message("Loaded env layer: #{path}")
+    else
+      UI.important("Env layer not found: #{path}, using defaults")
+    end
+  end
+
+  private_lane :resolve_env_build_options do |options|
+    env_name = options[:env_name].to_s
+    up = env_name.upcase
+
+    {
+      scheme: env_fetch("#{up}_SCHEME", SCHEME_DIS),
+      bundle_id: env_fetch("#{up}_BUNDLE_ID", BUNDLE_ID_DIS),
+      profile_name: env_fetch("#{up}_PROFILE", PROFILE_DIS),
+      export_method: env_fetch("#{up}_EXPORT_METHOD", "ad-hoc"),
+      configuration: env_fetch("#{up}_CONFIGURATION", "Release"),
+      upload_pgyer: env_fetch("#{up}_UPLOAD_PGYER", env_name == "prod" ? "false" : "true")
+    }
   end
 
   private_lane :notify_channels do |options|
@@ -191,9 +223,11 @@ platform :ios do
 
     commit = "unknown"
     changelog = "No changelog"
+    changes = []
     begin
       commit = sh("git rev-parse --short HEAD").strip
       changelog = sh("git log -1 --pretty=%s").strip
+      changes = sh("git log -10 --pretty=format:'- %h %s'").split("\n")
     rescue
       UI.important("Git metadata unavailable, changelog fallback applied")
     end
@@ -202,8 +236,39 @@ platform :ios do
       version: version,
       build: build,
       commit: commit,
-      changelog: changelog
+      changelog: changelog,
+      changes: changes
     }
+  end
+
+  private_lane :write_changelog_markdown do |options|
+    env_type = options[:env_type]
+    meta = options[:meta]
+
+    FileUtils.mkdir_p(OUTPUT_DIR)
+    path = File.join(OUTPUT_DIR, "CHANGELOG_#{env_type}_#{meta[:version]}_#{meta[:build]}.md")
+
+    body = []
+    body << "# #{PROJECT_NAME} #{env_type}"
+    body << ""
+    body << "- Version: #{meta[:version]}"
+    body << "- Build: #{meta[:build]}"
+    body << "- Commit: #{meta[:commit]}"
+    body << "- Time: #{Time.now.strftime('%Y-%m-%d %H:%M:%S')}"
+    body << ""
+    body << "## Summary"
+    body << meta[:changelog].to_s
+    body << ""
+    body << "## Recent Commits"
+
+    if meta[:changes].nil? || meta[:changes].empty?
+      body << "- (No git history available)"
+    else
+      body.concat(meta[:changes])
+    end
+
+    File.write(path, body.join("\n"))
+    path
   end
 
   private_lane :build_ipa do |options|
@@ -237,7 +302,8 @@ platform :ios do
       include_bitcode: false
     )
 
-    meta.merge({ ipa_path: ipa_path })
+    changelog_path = write_changelog_markdown(env_type: env_type, meta: meta)
+    meta.merge({ ipa_path: ipa_path, changelog_path: changelog_path })
   end
 
   private_lane :build_and_upload_pgyer do |options|
@@ -257,12 +323,12 @@ platform :ios do
       version: meta[:version],
       build: meta[:build],
       commit: meta[:commit],
-      message: "uploaded_to=pgyer"
+      message: "uploaded_to=pgyer changelog=#{File.basename(meta[:changelog_path])}"
     )
 
     send_notification(
       "#{options[:env_type].to_s.upcase}打包完成",
-      "#{PROJECT_NAME} #{meta[:version]}(#{meta[:build]}) commit:#{meta[:commit]}",
+      "#{PROJECT_NAME} #{meta[:version]}(#{meta[:build]}) #{File.basename(meta[:changelog_path])}",
       "Glass"
     )
 
@@ -344,6 +410,80 @@ platform :ios do
     )
   end
 
+  desc "多环境 Staging 打包（读取 fastlane/.env.fastlane.staging）"
+  lane :staging do
+    prepare
+    load_env_layer(name: "staging")
+    opts = resolve_env_build_options(env_name: "staging")
+
+    certificates(type: opts[:export_method] == "app-store" ? "appstore" : "adhoc", readonly: false)
+
+    meta = build_ipa(
+      env_type: "staging",
+      scheme: opts[:scheme],
+      configuration: opts[:configuration],
+      export_method: opts[:export_method],
+      bundle_id: opts[:bundle_id],
+      profile_name: opts[:profile_name]
+    )
+
+    if bool_true?(opts[:upload_pgyer])
+      upload_to_pgyer(
+        env_type: "staging",
+        version: meta[:version],
+        build: meta[:build],
+        changelog: meta[:changelog],
+        ipa_path: meta[:ipa_path]
+      )
+    end
+
+    notify_channels(
+      lane: "staging",
+      status: "success",
+      version: meta[:version],
+      build: meta[:build],
+      commit: meta[:commit],
+      message: "uploaded_to=#{bool_true?(opts[:upload_pgyer]) ? 'pgyer' : 'none'} changelog=#{File.basename(meta[:changelog_path])}"
+    )
+  end
+
+  desc "多环境 Prod 打包（读取 fastlane/.env.fastlane.prod）"
+  lane :prod do
+    prepare
+    load_env_layer(name: "prod")
+    opts = resolve_env_build_options(env_name: "prod")
+
+    certificates(type: opts[:export_method] == "app-store" ? "appstore" : "adhoc", readonly: false)
+
+    meta = build_ipa(
+      env_type: "prod",
+      scheme: opts[:scheme],
+      configuration: opts[:configuration],
+      export_method: opts[:export_method],
+      bundle_id: opts[:bundle_id],
+      profile_name: opts[:profile_name]
+    )
+
+    if bool_true?(opts[:upload_pgyer])
+      upload_to_pgyer(
+        env_type: "prod",
+        version: meta[:version],
+        build: meta[:build],
+        changelog: meta[:changelog],
+        ipa_path: meta[:ipa_path]
+      )
+    end
+
+    notify_channels(
+      lane: "prod",
+      status: "success",
+      version: meta[:version],
+      build: meta[:build],
+      commit: meta[:commit],
+      message: "uploaded_to=#{bool_true?(opts[:upload_pgyer]) ? 'pgyer' : 'none'} changelog=#{File.basename(meta[:changelog_path])}"
+    )
+  end
+
   desc "发布到 TestFlight"
   lane :release_testflight do
     prepare
@@ -373,7 +513,7 @@ platform :ios do
       version: meta[:version],
       build: meta[:build],
       commit: meta[:commit],
-      message: "uploaded_to=testflight"
+      message: "uploaded_to=testflight changelog=#{File.basename(meta[:changelog_path])}"
     )
   end
 
@@ -407,7 +547,7 @@ platform :ios do
       version: meta[:version],
       build: meta[:build],
       commit: meta[:commit],
-      message: "uploaded_to=appstore_connect"
+      message: "uploaded_to=appstore_connect changelog=#{File.basename(meta[:changelog_path])}"
     )
   end
 

@@ -2,7 +2,7 @@
 
 English | [中文](#中文说明)
 
-A reusable Codex skill to bootstrap and standardize iOS fastlane with signing sync, quality gates, git-based versioning, CI lanes, Pgyer upload, TestFlight/App Store release, and channel notifications.
+A reusable Codex skill to bootstrap and standardize iOS fastlane with signing sync, quality gates, git-based versioning, CI lanes, multi-environment staging/prod lanes, changelog markdown generation, Pgyer upload, TestFlight/App Store release, and channel notifications.
 
 ## Features
 
@@ -11,17 +11,21 @@ A reusable Codex skill to bootstrap and standardize iOS fastlane with signing sy
   - `fastlane/Appfile`
   - `fastlane/Pluginfile`
   - `fastlane/.env.fastlane.example`
+  - `fastlane/.env.fastlane.staging.example`
+  - `fastlane/.env.fastlane.prod.example`
 - Supports `.xcworkspace` and `.xcodeproj`
 - Auto-detects scheme, bundle id, signing style, team id (optional)
 - Lanes included:
   - `prepare`, `quality_gate`, `versioning`, `certificates`
-  - `dev`, `dis`
+  - `dev`, `dis`, `staging`, `prod`
   - `ci_setup`, `ci_build_dev`, `ci_build_dis`
   - `release_testflight`, `release_appstore`
   - `validate_config`, `clean_builds`
 - Optional notifications:
   - Slack webhook
   - WeChat webhook
+- Build changelog markdown auto output:
+  - `fastlane/builds/CHANGELOG_<env>_<version>_<build>.md`
 
 ## Quick Start
 
@@ -40,9 +44,17 @@ bash /Users/newdroid/.codex/skills/ios-fastlane-pgyer/scripts/bootstrap_fastlane
 ```bash
 bundle install
 cp fastlane/.env.fastlane.example fastlane/.env.fastlane
-# fill secrets in .env.fastlane
+cp fastlane/.env.fastlane.staging.example fastlane/.env.fastlane.staging
+cp fastlane/.env.fastlane.prod.example fastlane/.env.fastlane.prod
 bundle exec fastlane ios validate_config
 bundle exec fastlane ios dev
+```
+
+## Multi-Environment Usage
+
+```bash
+bundle exec fastlane ios staging
+bundle exec fastlane ios prod
 ```
 
 ## Release Examples
@@ -71,6 +83,20 @@ WECHAT_WEBHOOK_URL
 
 APP_STORE_CONNECT_API_KEY_PATH
 TESTFLIGHT_GROUPS
+
+STAGING_SCHEME
+STAGING_BUNDLE_ID
+STAGING_PROFILE
+STAGING_EXPORT_METHOD
+STAGING_CONFIGURATION
+STAGING_UPLOAD_PGYER
+
+PROD_SCHEME
+PROD_BUNDLE_ID
+PROD_PROFILE
+PROD_EXPORT_METHOD
+PROD_CONFIGURATION
+PROD_UPLOAD_PGYER
 ```
 
 ## Script Parameters
@@ -101,7 +127,7 @@ TESTFLIGHT_GROUPS
 
 ## 中文说明
 
-这是一个可复用的 Codex skill，用于在 iOS 项目中快速搭建并标准化 fastlane 流程，覆盖签名同步、质量门禁、版本策略、CI 构建、蒲公英分发、TestFlight/App Store 发布，以及通知通道。
+这是一个可复用的 Codex skill，用于在 iOS 项目中快速搭建并标准化 fastlane 流程，覆盖签名同步、质量门禁、版本策略、CI 构建、多环境 staging/prod、changelog 生成、蒲公英分发、TestFlight/App Store 发布，以及通知通道。
 
 ### 能力
 
@@ -110,43 +136,27 @@ TESTFLIGHT_GROUPS
   - `fastlane/Appfile`
   - `fastlane/Pluginfile`
   - `fastlane/.env.fastlane.example`
+  - `fastlane/.env.fastlane.staging.example`
+  - `fastlane/.env.fastlane.prod.example`
 - 支持 `.xcworkspace` / `.xcodeproj`
 - 自动探测 scheme、bundle id、签名模式、team id（可选）
 - 内置 lanes：
   - `prepare`、`quality_gate`、`versioning`、`certificates`
-  - `dev`、`dis`
+  - `dev`、`dis`、`staging`、`prod`
   - `ci_setup`、`ci_build_dev`、`ci_build_dis`
   - `release_testflight`、`release_appstore`
   - `validate_config`、`clean_builds`
-- 可选通知：
-  - Slack webhook
-  - 企业微信 webhook
+- 可选通知：Slack / 企业微信 webhook
+- 每次构建自动生成 markdown 变更文件：
+  - `fastlane/builds/CHANGELOG_<env>_<version>_<build>.md`
 
-### 快速开始
-
-```bash
-bash /Users/newdroid/.codex/skills/ios-fastlane-pgyer/scripts/bootstrap_fastlane.sh --dry-run
-```
+### 多环境使用
 
 ```bash
-bash /Users/newdroid/.codex/skills/ios-fastlane-pgyer/scripts/bootstrap_fastlane.sh \
-  --match-git-url "git@github.com:your-org/certificates.git" \
-  --enable-tests true \
-  --enable-swiftlint false \
-  --enable-slack-notify true
+bundle exec fastlane ios staging
+bundle exec fastlane ios prod
 ```
 
-```bash
-bundle install
-cp fastlane/.env.fastlane.example fastlane/.env.fastlane
-# 填写 .env.fastlane 中的密钥
-bundle exec fastlane ios validate_config
-bundle exec fastlane ios dev
-```
-
-### 发布示例
-
-```bash
-bundle exec fastlane ios release_testflight
-bundle exec fastlane ios release_appstore
-```
+`staging/prod` 会自动读取：
+- `fastlane/.env.fastlane.staging`
+- `fastlane/.env.fastlane.prod`
