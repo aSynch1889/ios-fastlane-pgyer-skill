@@ -83,6 +83,12 @@ cp fastlane/.env.fastlane.prod.example fastlane/.env.fastlane.prod
 bash /Users/newdroid/.codex/skills/ios-fastlane-skill/scripts/doctor_fastlane_env.sh --project "$(pwd)" --fix
 ```
 
+### 5. One-command run (recommended)
+
+```bash
+bash /Users/newdroid/.codex/skills/ios-fastlane-skill/scripts/fastlane_run.sh --project "$(pwd)" --lane dev
+```
+
 ## Bootstrap Modes
 
 ### Mode A: Standard CLI options
@@ -328,6 +334,12 @@ cp fastlane/.env.fastlane.prod.example fastlane/.env.fastlane.prod
 
 ```bash
 bash /Users/newdroid/.codex/skills/ios-fastlane-skill/scripts/doctor_fastlane_env.sh --project "$(pwd)" --fix
+```
+
+### 5. 一键执行（推荐）
+
+```bash
+bash /Users/newdroid/.codex/skills/ios-fastlane-skill/scripts/fastlane_run.sh --project "$(pwd)" --lane dev
 ```
 
 ## 初始化模式
