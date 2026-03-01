@@ -514,6 +514,26 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
+ensure_gemfile_plugin_loader() {
+  local gemfile="$(pwd)/Gemfile"
+
+  if [[ ! -f "$gemfile" ]]; then
+    cat > "$gemfile" <<'EOF'
+source "https://rubygems.org"
+
+gem "fastlane"
+EOF
+  fi
+
+  if ! grep -q 'eval_gemfile(plugins_path)' "$gemfile"; then
+    cat >> "$gemfile" <<'EOF'
+
+plugins_path = File.join(File.dirname(__FILE__), "fastlane", "Pluginfile")
+eval_gemfile(plugins_path) if File.exist?(plugins_path)
+EOF
+  fi
+}
+
 if [[ "$DRY_RUN" == "true" ]]; then
   echo "Dry run complete. No files written."
   exit 0
@@ -558,6 +578,8 @@ render() {
     "$src" > "$dest"
 }
 
+ensure_gemfile_plugin_loader
+
 render "$TEMPLATE_DIR/Fastfile.template" "$TARGET_DIR/Fastfile"
 render "$TEMPLATE_DIR/Appfile.template" "$TARGET_DIR/Appfile"
 cp "$TEMPLATE_DIR/Pluginfile.template" "$TARGET_DIR/Pluginfile"
@@ -571,4 +593,5 @@ echo "Generated: $TARGET_DIR/Pluginfile"
 echo "Generated: $TARGET_DIR/.env.fastlane.example"
 echo "Generated: $TARGET_DIR/.env.fastlane.staging.example"
 echo "Generated: $TARGET_DIR/.env.fastlane.prod.example"
+echo "Generated: $(pwd)/Gemfile"
 echo "Next: bundle install && copy env examples to real env files"
